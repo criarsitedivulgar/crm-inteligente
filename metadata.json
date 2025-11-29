@@ -1,5 +1,5 @@
 {
-  "name": "Gerenciamento de Tarefa da Criar Site Divulgar",
+  "name": "CRM INTELIGENTE",
   "description": "Um gerenciador de tarefas Kanban inteligente impulsionado pela API Gemini do Google. Organize projetos, arraste e solte tarefas, e use a IA para gerar planos de ação completos automaticamente.",
   "requestFramePermissions": []
 }

@@ -1,3 +1,4 @@
+
 export enum Priority {
   LOW = 'Baixa',
   MEDIUM = 'Média',
@@ -6,12 +7,16 @@ export enum Priority {
 }
 
 export enum ColumnId {
+  BUDGET = 'budget',
   TODO = 'todo',
   IN_PROGRESS = 'in-progress',
-  DONE = 'done'
+  DONE = 'done',
+  BILLING = 'billing'
 }
 
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly';
+
+export type BillingPeriod = 'unique' | 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
 export interface Attachment {
   id: string;
@@ -34,9 +39,20 @@ export interface Task {
   dueDate?: string;
   recurrence: RecurrenceType;
   recurrenceDays?: number[];
-  clientName?: string; // Novo campo
+  clientName?: string;
   clientPhone?: string;
+  notifyClient: boolean; 
   attachments?: Attachment[];
+  
+  // Financeiro
+  billingValue?: number;
+  billingPeriod?: BillingPeriod;
+  billingPixKey?: string;
+  isPaid?: boolean;
+  paymentDate?: number;
+  
+  // Status de Orçamento
+  isRejected?: boolean;
 }
 
 export interface ColumnData {
@@ -60,7 +76,7 @@ export interface GeneratedTask {
 
 export interface AppSettings {
   // General
-  hourlyRate: number; // Novo campo
+  hourlyRate: number;
 
   // Email Settings
   emailEnabled: boolean;
@@ -74,6 +90,15 @@ export interface AppSettings {
   mercadoPagoEnabled: boolean;
   mercadoPagoPublicKey: string;
   mercadoPagoAccessToken: string;
+
+  // WhatsApp API Settings
+  whatsappApiEnabled: boolean;
+  whatsappApiUrl: string; 
+  whatsappApiToken: string;
+  whatsappInstanceName?: string;
+
+  // Financeiro Padrão
+  defaultPixKey?: string;
 }
 
 export interface User {
@@ -84,4 +109,5 @@ export interface User {
   isPro: boolean;
   avatar?: string;
   companyName?: string;
+  createdAt?: string; // Data de criação para cálculo do trial
 }

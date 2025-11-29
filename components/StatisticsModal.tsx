@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from './ui/Modal';
 import { BoardData, ColumnId, Task, AppSettings } from '../types';
-import { PieChart, Clock, CheckCircle, ListTodo, Trophy, TrendingUp, CalendarDays, DollarSign, User, Award } from 'lucide-react';
+import { PieChart, Clock, CheckCircle, ListTodo, Trophy, TrendingUp, CalendarDays, User, Award, Wallet, ThumbsDown, Percent, ArrowUpCircle } from 'lucide-react';
 
 interface StatisticsModalProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ isOpen, onClos
   const doneTasks = board.columns[ColumnId.DONE].taskIds.length;
   const inProgressTasks = board.columns[ColumnId.IN_PROGRESS].taskIds.length;
   const todoTasks = board.columns[ColumnId.TODO].taskIds.length;
+  const budgetTasks = board.columns[ColumnId.BUDGET].taskIds.map(id => board.tasks[id]).filter(Boolean);
   
   const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   
@@ -29,15 +30,42 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ isOpen, onClos
   
   const clientStats: Record<string, { ms: number, count: number }> = {};
   
+  // --- Lógica Financeira ---
+  let totalPendingBilling = 0;
+  let totalReceived = 0;
+  let totalRejectedValue = 0;
+  let approvedCount = 0;
+  let rejectedCount = 0;
+
+  // Calcula Aprovados (Tudo que saiu do orçamento + o que está no orçamento mas não recusado, não, na verdade, aprovado é o que virou trabalho)
+  // Vamos simplificar: Aprovado = Todo + InProgress + Done + Billing. 
+  // Recusado = Budget com isRejected=true.
+  
+  approvedCount = todoTasks + inProgressTasks + doneTasks + board.columns[ColumnId.BILLING].taskIds.length;
+  rejectedCount = budgetTasks.filter(t => t.isRejected).length;
+
+  const totalBudgetsProcessed = approvedCount + rejectedCount;
+  const conversionRate = totalBudgetsProcessed > 0 ? Math.round((approvedCount / totalBudgetsProcessed) * 100) : 0;
+
   allTasks.forEach(task => {
-    // Usar 'Sem Cliente' se não houver nome definido
+    // Clientes Top 5
     const client = task.clientName && task.clientName.trim() !== '' ? task.clientName : 'Sem Cliente';
-    
     if (!clientStats[client]) {
       clientStats[client] = { ms: 0, count: 0 };
     }
     clientStats[client].ms += task.timeSpent;
     clientStats[client].count += 1;
+
+    // Financeiro
+    if (task.billingValue && task.billingValue > 0) {
+      if (task.isRejected) {
+        totalRejectedValue += task.billingValue;
+      } else if (task.isPaid) {
+        totalReceived += task.billingValue;
+      } else {
+        totalPendingBilling += task.billingValue;
+      }
+    }
   });
 
   const topClients = Object.entries(clientStats)
@@ -115,6 +143,68 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ isOpen, onClos
              <p className="text-2xl font-bold text-indigo-200">
                {totalHours}h {totalMinutes}m
              </p>
+          </div>
+        </div>
+
+        {/* --- Card Financeiro --- */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           {/* A RECEBER */}
+           <div className="bg-yellow-900/10 border border-yellow-800/40 p-4 rounded-xl flex flex-col justify-between h-full">
+             <div className="flex items-center gap-2 text-yellow-400 mb-2">
+               <Wallet size={18} className="shrink-0" />
+               <span className="font-bold text-xs sm:text-sm uppercase tracking-wide truncate">A Receber (Pendente)</span>
+             </div>
+             <p className="text-2xl sm:text-3xl font-bold text-yellow-200 truncate" title={`R$ ${totalPendingBilling.toFixed(2)}`}>
+               R$ {totalPendingBilling.toFixed(2)}
+             </p>
+           </div>
+
+           {/* TOTAL RECEBIDO */}
+           <div className="bg-emerald-900/10 border border-emerald-800/40 p-4 rounded-xl flex flex-col justify-between h-full">
+             <div className="flex items-center gap-2 text-emerald-400 mb-2">
+               <ArrowUpCircle size={18} className="shrink-0" />
+               <span className="font-bold text-xs sm:text-sm uppercase tracking-wide truncate">Total Recebido</span>
+             </div>
+             <p className="text-2xl sm:text-3xl font-bold text-emerald-200 truncate" title={`R$ ${totalReceived.toFixed(2)}`}>
+               R$ {totalReceived.toFixed(2)}
+             </p>
+           </div>
+        </div>
+
+        {/* --- Métricas de Orçamento (Recusados vs Aprovados) --- */}
+        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+          <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+             <Percent size={18} className="text-blue-400" />
+             Conversão de Orçamentos
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div className="bg-slate-900 p-3 rounded border border-slate-800">
+                <p className="text-xs text-slate-500 uppercase font-bold mb-1">Taxa de Conversão</p>
+                <div className="flex items-end gap-2">
+                   <span className="text-2xl font-bold text-blue-400">{conversionRate}%</span>
+                   <span className="text-xs text-slate-500 mb-1">aprovados</span>
+                </div>
+             </div>
+             
+             <div className="bg-red-900/10 p-3 rounded border border-red-900/30">
+                <div className="flex items-center gap-2 mb-1 text-red-400">
+                   <ThumbsDown size={14} />
+                   <p className="text-xs uppercase font-bold">Orçamentos Perdidos</p>
+                </div>
+                <p className="text-xl font-bold text-red-300">
+                   R$ {totalRejectedValue.toFixed(2)}
+                </p>
+                <p className="text-[10px] text-red-400/60 mt-1">{rejectedCount} projetos recusados</p>
+             </div>
+
+             <div className="bg-emerald-900/10 p-3 rounded border border-emerald-900/30 sm:col-span-2">
+                <div className="flex items-center gap-2 mb-1 text-emerald-400">
+                   <CheckCircle size={14} />
+                   <p className="text-xs uppercase font-bold">Aprovados (Total)</p>
+                </div>
+                <p className="text-xl font-bold text-emerald-300">{approvedCount}</p>
+                <p className="text-[10px] text-emerald-400/60 mt-1">Projetos em andamento/feitos</p>
+             </div>
           </div>
         </div>
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from './ui/Button';
 import { User } from '../types';
-import { Layout, Mail, Lock, User as UserIcon, ArrowRight, KeyRound, ArrowLeft } from 'lucide-react';
+import { Layout, Mail, Lock, User as UserIcon, ArrowRight, ShieldAlert, BookOpen } from 'lucide-react';
 import { LegalModal } from './LegalModals';
-import { signIn, signUp, resetPassword } from '../services/supabaseClient';
+import { DocumentationModal } from './DocumentationModal';
+import { signIn, signUp } from '../services/supabaseClient';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
@@ -11,43 +12,34 @@ interface AuthScreenProps {
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [isRecovering, setIsRecovering] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [company, setCompany] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
-  // Legal Modals State
+  // Legal & Doc Modals State
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showDoc, setShowDoc] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccessMessage('');
     setIsLoading(true);
 
     try {
-      if (isRecovering) {
-        if (!email) throw new Error("Informe seu e-mail para recuperar a senha.");
-        await resetPassword(email);
-        setSuccessMessage("Se houver uma conta com este e-mail, você receberá um link de redefinição em instantes.");
-        setIsLoading(false);
-        return;
-      }
-
       if (!email || !password) {
         throw new Error("Preencha e-mail e senha.");
       }
 
+      let authData;
       let userData: User;
 
       if (isLogin) {
         // Login via Supabase
-        const { user } = await signIn(email, password);
+        const { user, session } = await signIn(email, password);
         if (!user) throw new Error("Erro ao autenticar.");
         
         userData = {
@@ -55,12 +47,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           email: user.email || '',
           name: user.user_metadata.full_name || user.email?.split('@')[0] || 'Usuário',
           companyName: user.user_metadata.company_name || 'Minha Empresa',
-          isPro: false 
+          isPro: false // Poderia vir do banco também
         };
 
       } else {
         // Cadastro via Supabase
-        const { user } = await signUp(email, password, name, company);
+        const { user, session } = await signUp(email, password, name, company);
         if (!user) throw new Error("Erro ao criar conta. Verifique os dados.");
 
         userData = {
@@ -93,44 +85,39 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           <div className="inline-flex bg-gradient-to-br from-indigo-500 to-indigo-700 p-3 rounded-xl shadow-xl shadow-indigo-500/20 mb-4">
             <Layout className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4 max-w-lg mx-auto leading-tight">
-            Pare de perder dinheiro em orçamentos errados.
-          </h1>
-          <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
-            Gerencie suas tarefas e cronometre cada segundo. O sistema calcula automaticamente o valor exato do seu projeto baseada nas suas horas trabalhadas. Seu tempo é dinheiro: comece a cobrar o valor justo.
-          </p>
+          <h1 className="text-3xl font-bold text-white mb-2">CRM CRIAR SITE DIVULGAR</h1>
+          <p className="text-slate-400">Gerencie projetos e automatize com IA.</p>
+        </div>
+
+        {/* Documentation Access for Setup */}
+        <div className="flex justify-end mb-4">
+          <button 
+            onClick={() => setShowDoc(true)}
+            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-indigo-900/30 px-3 py-1.5 rounded-full border border-indigo-500/30 transition-colors"
+          >
+            <BookOpen size={12} />
+            Manual de Conexão DB
+          </button>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
-          {/* Header do Form (Abas) */}
-          {!isRecovering ? (
-            <div className="flex gap-4 mb-6 p-1 bg-slate-800/50 rounded-lg">
-              <button 
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                onClick={() => setIsLogin(true)}
-              >
-                Entrar
-              </button>
-              <button 
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${!isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                onClick={() => setIsLogin(false)}
-              >
-                Criar Conta
-              </button>
-            </div>
-          ) : (
-            <div className="mb-6 flex items-center gap-3">
-               <button onClick={() => { setIsRecovering(false); setError(''); setSuccessMessage(''); }} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
-                 <ArrowLeft size={20} />
-               </button>
-               <h3 className="text-lg font-bold text-white">Recuperar Senha</h3>
-            </div>
-          )}
+          <div className="flex gap-4 mb-6 p-1 bg-slate-800/50 rounded-lg">
+            <button 
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => setIsLogin(true)}
+            >
+              Entrar
+            </button>
+            <button 
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${!isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => setIsLogin(false)}
+            >
+              Criar Conta
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {/* View de Cadastro (Campos Extras) */}
-            {!isLogin && !isRecovering && (
+            {!isLogin && (
               <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
                 <div className="relative">
                   <UserIcon className="absolute left-3 top-3 text-slate-500" size={18} />
@@ -140,7 +127,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                    required
                   />
                 </div>
                 <div className="relative">
@@ -156,7 +142,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               </div>
             )}
 
-            {/* Email Field (Sempre Visível) */}
             <div className="relative">
               <Mail className="absolute left-3 top-3 text-slate-500" size={18} />
               <input
@@ -165,55 +150,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                required
               />
             </div>
 
-            {/* Password Field (Oculto na recuperação) */}
-            {!isRecovering && (
-              <div className="space-y-2">
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
-                  <input
-                    type="password"
-                    placeholder="Senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                    required
-                  />
-                </div>
-                {isLogin && (
-                  <div className="flex justify-end">
-                    <button 
-                      type="button"
-                      onClick={() => { setIsRecovering(true); setError(''); setSuccessMessage(''); }}
-                      className="text-xs text-slate-400 hover:text-indigo-400 transition-colors"
-                    >
-                      Esqueceu a senha?
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
+              <input
+                type="password"
+                placeholder="Senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
 
             {error && (
-              <p className="text-red-400 text-sm text-center bg-red-900/10 py-2 rounded border border-red-900/20 animate-in fade-in">{error}</p>
-            )}
-
-            {successMessage && (
-              <p className="text-emerald-400 text-sm text-center bg-emerald-900/10 py-2 rounded border border-emerald-900/20 animate-in fade-in">{successMessage}</p>
+              <p className="text-red-400 text-sm text-center bg-red-900/10 py-2 rounded border border-red-900/20">{error}</p>
             )}
 
             <Button 
               className="w-full mt-2 h-11 text-base shadow-lg shadow-indigo-900/20" 
               isLoading={isLoading}
-              icon={!isLoading && (isRecovering ? <KeyRound size={18} /> : <ArrowRight size={18} />)}
+              icon={!isLoading && <ArrowRight size={18} />}
             >
-              {isRecovering ? 'Enviar Link de Recuperação' : (isLogin ? 'Acessar' : 'Cadastrar Grátis')}
+              {isLogin ? 'Acessar' : 'Cadastrar Grátis'}
             </Button>
           </form>
 
+          {/* Admin Hint Removed for Production Look */}
         </div>
 
         <div className="mt-8 text-center text-xs text-slate-500 flex justify-center gap-4">
@@ -225,6 +189,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
       <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} type="terms" />
       <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} type="privacy" />
+      <DocumentationModal isOpen={showDoc} onClose={() => setShowDoc(false)} />
     </div>
   );
 };
